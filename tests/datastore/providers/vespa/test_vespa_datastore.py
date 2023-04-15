@@ -146,7 +146,6 @@ async def test_delete_removes_by_document_id_filter(
 
     assert vespa_datastore._n_docs_ingested == 2, "There should be 2 chunks in store after delete; found {vespa_datastore._n_docs_ingested}"
 
-@pytest.mark.skip()
 @pytest.mark.asyncio
 async def test_delete_removes_all(
     vespa_datastore,
@@ -154,7 +153,8 @@ async def test_delete_removes_all(
 ):
     # Fill the database with document chunks before running the actual test
     await vespa_datastore._upsert(document_chunks)
+    assert vespa_datastore._n_docs_ingested == 5, "There should be 5 chunks in store after upsert; found {vespa_datastore._n_docs_ingested}"
 
     await vespa_datastore.delete(delete_all=True)
 
-    assert 0 == vespa_datastore._n_docs_ingested
+    assert 0 == vespa_datastore._n_docs_ingested, "There should be 0 chunks in store after delete_all"

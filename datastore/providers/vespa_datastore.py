@@ -248,34 +248,37 @@ class VespaDataStore(DataStore):
             raise ValueError(
                 "Please provide one of the parameters: ids, filter or delete_all."
             )
-
-        if delete_all == True:
-            raise NotImplementedError("Deleting all documents is not implemented yet.")
-
-        if filter is not None:
-            filter_condition = self._convert_filter(filter)
-            yql = (
-                f"select id, documentid from sources documents where {filter_condition}"
-            )
-            qbody = {
-                "yql": yql,
-                "hits": 10,
-                "type": "all",
-            }
-            res = self.client.query(body=qbody)
-            while len((res := self.client.query(body=qbody)).hits) > 0:
-                delete_resp = self.client.delete_batch(
-                    [{"id": hit["fields"]["id"]} for hit in res.hits]
-                )
-                if not all(resp.status_code == 200 for resp in delete_resp):
-                    break
-            return True
-
-        if len(ids) > 0:
+        
+        if (ids is not None) and (len(ids) > 0):
             resp = self.client.delete_batch(
                 batch=[{"id": id} for id in ids], schema=self.schema
             )
             return resp.status_code == 200
+
+        if delete_all == True:
+            filter_condition = "true"
+
+        if filter is not None:
+            filter_condition = self._convert_filter(filter)
+
+        yql = (
+            f"select id, documentid from sources documents where {filter_condition}"
+        )
+        qbody = {
+            "yql": yql,
+            "hits": 10,
+            "type": "all",
+        }
+        res = self.client.query(body=qbody)
+        while len((res := self.client.query(body=qbody)).hits) > 0:
+            delete_resp = self.client.delete_batch(
+                [{"id": hit["fields"]["id"]} for hit in res.hits]
+            )
+            if not all(resp.status_code == 200 for resp in delete_resp):
+                break
+        return True
+
+
 
 
 if __name__ == "__main__":
