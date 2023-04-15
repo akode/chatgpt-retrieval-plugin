@@ -20,7 +20,9 @@ from vespa.package import ApplicationPackage, Field, HNSW, RankProfile
 VECTOR_SIZE = 1536
 
 # Create the schema
-app_package = ApplicationPackage(name="documents")
+SCHEMA_NAME = "documents"
+TENSOR_FIELDS = ["embedding"]
+app_package = ApplicationPackage(name=SCHEMA_NAME)
 app_package.schema.add_fields(
     Field(name="id", type="string", indexing=["attribute", "summary"]),
     Field(
@@ -84,15 +86,11 @@ def deploy_schema():
 class VespaDataStore(DataStore):
     def __init__(
         self,
-        client,
+        client=VespaConfig().get_client(),
     ):
         self.client = client
-        self.schema = client.application_package.schema.name
-        self.tensor_fields = [
-            field.name
-            for field in self.client.application_package.schema.document.fields
-            if "tensor" in field.type
-        ]
+        self.schema = SCHEMA_NAME
+        self.tensor_fields = TENSOR_FIELDS
 
     def _chunk_to_flat_dict(self, chunk: DocumentChunk) -> Dict[str, any]:
         chunk = chunk.dict()
