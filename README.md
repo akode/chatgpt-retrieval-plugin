@@ -276,6 +276,10 @@ All you need to do is specifying a few environment variables (optionally point t
 Note that metadata filters in queries are not yet supported.
 For detailed setup instructions, refer to [`/docs/providers/llama/setup.md`](/docs/providers/llama/setup.md).
 
+#### Vespa
+
+[Vespa](https://vespa.ai/) is a fully featured search engine and vector database. It offers both self-hosted and managed [Vespa Cloud](https://cloud.vespa.ai/) deployment options. For detailed setup instructions, refer to [`/docs/providers/vespa/setup.md`](/docs/providers/vespa/setup.md).
+
 ### Running the API locally
 
 To run the API locally, you first need to set the requisite environment variables with the `export` command:
@@ -457,3 +461,5 @@ We would like to extend our gratitude to the following contributors for their co
 - [Redis](https://redis.io/)
   - [spartee](https://github.com/spartee)
   - [tylerhutcherson](https://github.com/tylerhutcherson)
+- [Vespa](https://vespa.ai/)
+  - [akode](https://github.com/akode)

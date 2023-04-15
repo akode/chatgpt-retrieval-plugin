@@ -12,7 +12,7 @@ from models.models import (
 from vespa.application import Vespa
 from vespa.deployment import VespaDocker
 from datastore.providers.vespa_datastore import (
-    VespaDataStore, app_package, VECTOR_SIZE
+    VespaDataStore, VespaConfig, VECTOR_SIZE, app_package
 )
 
 def create_embedding(non_zero_pos: int, size: int) -> List[float]:
@@ -22,12 +22,11 @@ def create_embedding(non_zero_pos: int, size: int) -> List[float]:
 
 @pytest.fixture
 def vespa_datastore() -> VespaDataStore:
-    vespa_docker = VespaDocker()
-    client = vespa_docker.deploy(app_package)
-    yield VespaDataStore(client)
-    vespa_docker.container.stop()
-    vespa_docker.container.remove()
-
+    instance = VespaDocker()
+    client = instance.deploy(app_package)
+    yield VespaDataStore(client=client)
+    instance.container.stop()
+    instance.container.remove()
 
 
 @pytest.fixture

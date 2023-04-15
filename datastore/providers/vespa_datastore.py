@@ -10,14 +10,11 @@ from models.models import (
     DocumentMetadataFilter,
     DocumentChunkWithScore,
 )
+from pydantic import BaseSettings
 import vespa
 from vespa.application import Vespa
+from vespa.deployment import VespaCloud, VespaDocker
 from vespa.package import ApplicationPackage, Field, HNSW, RankProfile
-
-
-# Read environment variables for Vespa configuration
-VESPA_URL = os.environ.get("VESPA_URL", "http://localhost")
-VESPA_PORT = os.environ.get("VESPA_PORT", "19071")
 
 
 VECTOR_SIZE = 1536
@@ -56,18 +53,46 @@ app_package.schema.add_rank_profile(
 )
 
 
+class VespaConfig(BaseSettings):
+    VESPA_URL: str = "http://localhost"
+    VESPA_PORT: int = 8080
+    VESPA_TENANT: Optional[str] = None
+    VESPA_KEY: Optional[str] = None
+
+    class Config:
+        env_file = ".env"
+
+    def get_deploy_instance(self):
+        if self.VESPA_TENANT is None:
+            return VespaDocker.from_container_name_or_id("vespa")
+        else:
+            return VespaCloud(tenant=self.VESPA_TENANT, key_location=self.VESPA_KEY)
+
+    def get_client(self):
+        if self.VESPA_TENANT is None:
+            return Vespa(url=self.VESPA_URL)
+        else:
+            return Vespa(url=self.VESPA_URL, cert=self.VESPA_KEY)
+
+
+def deploy_schema():
+    config = VespaConfig()
+    instance = config.get_deploy_instance()
+    instance.deploy(app_package)
+
+
 class VespaDataStore(DataStore):
     def __init__(
         self,
-        vespa_client,
+        client,
     ):
-        self.client = vespa_client
+        self.client = client
+        self.schema = client.application_package.schema.name
         self.tensor_fields = [
             field.name
             for field in self.client.application_package.schema.document.fields
             if "tensor" in field.type
         ]
-        self.schema = "documents"
 
     def _chunk_to_flat_dict(self, chunk: DocumentChunk) -> Dict[str, any]:
         chunk = chunk.dict()
@@ -102,7 +127,7 @@ class VespaDataStore(DataStore):
                 elif field == "end_date":
                     filters.append(f"created_at <= {str(to_unix_timestamp(value))}")
                 else:
-                    filters.append(f"{field} matches \"{str(value)}\"")
+                    filters.append(f'{field} matches "{str(value)}"')
         return " and ".join(filters)
 
     def _query_to_vespa(self, query: QueryWithEmbedding) -> Dict[str, any]:
@@ -231,15 +256,19 @@ class VespaDataStore(DataStore):
 
         if filter is not None:
             filter_condition = self._convert_filter(filter)
-            yql = f"select id, documentid from sources documents where {filter_condition}"
+            yql = (
+                f"select id, documentid from sources documents where {filter_condition}"
+            )
             qbody = {
-                        "yql": yql,
-                        "hits": 10,
-                        "type": "all",
-                    }
+                "yql": yql,
+                "hits": 10,
+                "type": "all",
+            }
             res = self.client.query(body=qbody)
             while len((res := self.client.query(body=qbody)).hits) > 0:
-                delete_resp = self.client.delete_batch([{"id": hit["fields"]["id"]} for hit in res.hits])
+                delete_resp = self.client.delete_batch(
+                    [{"id": hit["fields"]["id"]} for hit in res.hits]
+                )
                 if not all(resp.status_code == 200 for resp in delete_resp):
                     break
             return True
@@ -249,3 +278,7 @@ class VespaDataStore(DataStore):
                 batch=[{"id": id} for id in ids], schema=self.schema
             )
             return resp.status_code == 200
+
+
+if __name__ == "__main__":
+    deploy_schema()
